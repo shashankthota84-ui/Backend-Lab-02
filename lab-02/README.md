@@ -1,13 +1,9 @@
 # Lab 2: SQLite Database and CRUD Routes
 
 **Name:** THOTA SHASHANK  
-**Registration Number:** [PLACEHOLDER - I WILL ENTER IT]  
-**Section:** [PLACEHOLDER - I WILL ENTER IT]  
+**Registration Number:** 252U1R1243
+**Section:** CSE-2E (211)
 
-**Live Link:**  
-[ADD AFTER DEPLOYMENT]
-
----
 
 ## Objective
 
