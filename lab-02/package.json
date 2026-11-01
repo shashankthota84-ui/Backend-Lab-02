@@ -1,0 +1,28 @@
+{
+  "name": "lab-02",
+  "version": "1.0.0",
+  "description": "Lab 2: SQLite Database and CRUD Routes",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "db:view": "node -e \"const sqlite3 = require('sqlite3'); const db = new sqlite3.Database('./books.db'); db.all('SELECT * FROM book;', (err, rows) => { if (err) console.error(err); else console.table(rows); db.close(); });\""
+  },
+  "keywords": [
+    "express",
+    "sqlite",
+    "sqlite3",
+    "crud",
+    "api"
+  ],
+  "author": "THOTA SHASHANK",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
