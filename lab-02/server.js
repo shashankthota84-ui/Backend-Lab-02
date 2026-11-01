@@ -1,114 +1,103 @@
-// Lab 2: SQLite Database and CRUD Routes
-// Student: THOTA SHASHANK
+const express = require('express');
+const sqlite3 = require('sqlite3');
+const { open } = require('sqlite');
+const path = require('path');
 
-const express = require("express");
-const path = require("path");
-const { open } = require("sqlite");
-const sqlite3 = require("sqlite3");
-
-// Initialize Express application
 const app = express();
 
-// Middleware to parse incoming JSON request bodies
 app.use(express.json());
 
-// Enable CORS so browser requests from any origin work smoothly
+// Enable CORS so browser requests and external tools work smoothly
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
   next();
 });
 
-// Path to SQLite database file
-const dbPath = path.join(__dirname, "books.db");
+const PORT = process.env.PORT || 3000;
 
-// Database instance variable
-let db = null;
+let db;
 
-// Function to initialize SQLite database and start the Express server
+// Sample Books
+const sampleBooks = [
+  ['Harry Potter', 'J.K. Rowling', 500, 350],
+  ['The Alchemist', 'Paulo Coelho', 300, 208],
+  ['Wings of Fire', 'A.P.J. Abdul Kalam', 250, 180],
+  ['Atomic Habits', 'James Clear', 450, 320],
+  ['Rich Dad Poor Dad', 'Robert Kiyosaki', 350, 250],
+  ['The Great Gatsby', 'F. Scott Fitzgerald', 200, 180],
+  ['Think and Grow Rich', 'Napoleon Hill', 400, 280],
+  ['Ikigai', 'Hector Garcia', 320, 190],
+  ['The Power of Habit', 'Charles Duhigg', 380, 290],
+  ['Deep Work', 'Cal Newport', 420, 300]
+];
+
+// Initialize Database and Server
 const initializeDBAndServer = async () => {
   try {
-    // Open connection to SQLite database
     db = await open({
-      filename: dbPath,
-      driver: sqlite3.Database,
+      filename: path.join(__dirname, 'books.db'),
+      driver: sqlite3.Database
     });
 
-    console.log("Database connected successfully");
+    console.log('Database connected successfully');
 
-    // Create the 'book' table if it does not already exist
-    const createTableQuery = `
+    // Create Books Table
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS book (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        author TEXT,
-        price INTEGER,
-        pages INTEGER
+        title TEXT NOT NULL,
+        author TEXT NOT NULL,
+        price INTEGER NOT NULL,
+        pages INTEGER NOT NULL
       );
-    `;
-    await db.exec(createTableQuery);
+    `);
 
-    // Check if the table is empty to prevent duplicate sample entries on restart
-    const countResult = await db.get("SELECT COUNT(*) AS count FROM book;");
+    // Insert sample books only if table is empty
+    const count = await db.get('SELECT COUNT(*) AS count FROM book');
 
-    if (countResult.count === 0) {
-      // Insert 10 realistic sample books
-      const insertSampleBooksQuery = `
-        INSERT INTO book (title, author, price, pages) VALUES
-        ('The Alchemist', 'Paulo Coelho', 399, 208),
-        ('Atomic Habits', 'James Clear', 499, 320),
-        ('To Kill a Mockingbird', 'Harper Lee', 450, 281),
-        ('1984', 'George Orwell', 350, 328),
-        ('The Great Gatsby', 'F. Scott Fitzgerald', 299, 180),
-        ('Pride and Prejudice', 'Jane Austen', 250, 279),
-        ('The Hobbit', 'J.R.R. Tolkien', 599, 310),
-        ('Rich Dad Poor Dad', 'Robert Kiyosaki', 420, 336),
-        ('Clean Code', 'Robert C. Martin', 850, 464),
-        ('The Pragmatic Programmer', 'Andrew Hunt', 799, 352);
-      `;
-      await db.run(insertSampleBooksQuery);
-      console.log("Sample books seeded successfully.");
+    if (count.count === 0) {
+      for (const book of sampleBooks) {
+        await db.run(
+          `INSERT INTO book (title, author, price, pages) VALUES (?, ?, ?, ?)`,
+          book
+        );
+      }
+      console.log('10 sample books inserted');
     }
 
-    // Start server on process.env.PORT or default to 3000
-    const PORT = process.env.PORT || 3000;
+    // Start Server after database connection
     app.listen(PORT, () => {
       console.log(`Server running at http://localhost:${PORT}`);
     });
+
   } catch (error) {
-    console.error(`Database connection error: ${error.message}`);
+    console.log(`Database Error: ${error.message}`);
     process.exit(1);
   }
 };
 
-// Start DB connection and Express server
-initializeDBAndServer();
-
-// ==========================================
-// API ROUTES
-// ==========================================
-
-// 1. Root route - verify API status
-app.get("/", (req, res) => {
-  res.status(200).json({
-    message: "Lab 2 SQLite CRUD API is running",
+// Home Route (Returns clean JSON per Lab requirements)
+app.get('/', (request, response) => {
+  response.status(200).json({
+    message: 'Welcome to Book Store API'
   });
 });
 
-// Interactive Browser UI to insert, view, and delete books live
-app.get("/ui/", (req, res) => {
-  res.setHeader("Content-Type", "text/html");
-  res.send(`
+// Interactive Browser UI to visually insert, view, and delete books
+app.get('/ui/', (request, response) => {
+  response.setHeader('Content-Type', 'text/html');
+  response.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lab 2: SQLite Book Management UI</title>
+  <title>Book Store Management UI</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: #0f172a; color: #f1f5f9; padding: 24px 16px; }
@@ -138,7 +127,7 @@ app.get("/ui/", (req, res) => {
 <body>
   <div class="container">
     <header>
-      <h1>📚 SQLite Books Management</h1>
+      <h1>📚 Book Store Management</h1>
       <p class="subtitle">Lab 2: Interactive Browser CRUD Interface | Connected to SQLite (books.db)</p>
     </header>
 
@@ -243,7 +232,7 @@ app.get("/ui/", (req, res) => {
         });
         const data = await res.json();
         if (res.status === 201) {
-          showMsg('Book inserted successfully with ID #' + data.id + ' (Status: 201 Created)');
+          showMsg('Book inserted successfully (Status: 201 Created)');
           document.getElementById('addBookForm').reset();
           fetchBooks();
         } else {
@@ -273,7 +262,6 @@ app.get("/ui/", (req, res) => {
       }
     }
 
-    // Initial load
     fetchBooks();
   </script>
 </body>
@@ -281,181 +269,133 @@ app.get("/ui/", (req, res) => {
   `);
 });
 
-// 2. GET /books/ - Retrieve all books from SQLite
-app.get("/books/", async (req, res) => {
+// 1. GET All Books
+app.get('/books/', async (request, response) => {
   try {
-    const getBooksQuery = `
-      SELECT * FROM book ORDER BY id ASC;
-    `;
-    const books = await db.all(getBooksQuery);
-    res.status(200).json(books);
+    const books = await db.all('SELECT * FROM book ORDER BY id');
+    response.status(200).json(books);
   } catch (error) {
-    console.error(`Error fetching books: ${error.message}`);
-    res.status(500).json({ error: "Internal Server Error" });
+    response.status(500).json({ error: error.message });
   }
 });
 
-// 3. GET /books/:bookId/ - Retrieve a single book by ID
-app.get("/books/:bookId/", async (req, res) => {
+// 2. GET Book by ID
+app.get('/books/:bookId/', async (request, response) => {
   try {
-    const { bookId } = req.params;
+    const { bookId } = request.params;
+    const book = await db.get('SELECT * FROM book WHERE id = ?', [bookId]);
 
-    // Validate that bookId is a number
-    if (isNaN(bookId) || Number(bookId) <= 0) {
-      return res.status(400).json({ error: "Invalid book ID" });
-    }
-
-    // Parameterized query using '?' placeholder to prevent SQL injection
-    const getBookQuery = `
-      SELECT * FROM book WHERE id = ?;
-    `;
-    const book = await db.get(getBookQuery, [bookId]);
-
-    // If book does not exist, return 404
     if (!book) {
-      return res.status(404).json({ error: "Book not found" });
-    }
-
-    res.status(200).json(book);
-  } catch (error) {
-    console.error(`Error fetching book: ${error.message}`);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-// 4. POST /books/ - Insert and create a new book
-app.post("/books/", async (req, res) => {
-  try {
-    const { title, author, price, pages } = req.body;
-
-    // Validate request body
-    if (
-      !title || typeof title !== "string" || title.trim() === "" ||
-      !author || typeof author !== "string" || author.trim() === "" ||
-      price === undefined || isNaN(price) || Number(price) < 0 ||
-      pages === undefined || isNaN(pages) || Number(pages) <= 0
-    ) {
-      return res.status(400).json({
-        error: "Invalid request data. Please provide valid title, author, price, and pages.",
+      return response.status(404).json({
+        error: 'Book not found'
       });
     }
 
-    // Parameterized query to insert the new book
-    const addBookQuery = `
-      INSERT INTO book (title, author, price, pages)
-      VALUES (?, ?, ?, ?);
-    `;
-    const result = await db.run(addBookQuery, [
-      title.trim(),
-      author.trim(),
-      Number(price),
-      Number(pages),
-    ]);
-
-    // Return status 201 (Created) and the newly created book
-    res.status(201).json({
-      id: result.lastID,
-      title: title.trim(),
-      author: author.trim(),
-      price: Number(price),
-      pages: Number(pages),
-    });
+    response.status(200).json(book);
   } catch (error) {
-    console.error(`Error adding book: ${error.message}`);
-    res.status(500).json({ error: "Internal Server Error" });
+    response.status(500).json({ error: error.message });
   }
 });
 
-// 5. PUT /books/:bookId/ - Update an existing book
-app.put("/books/:bookId/", async (req, res) => {
+// 3. POST - Add New Book
+app.post('/books/', async (request, response) => {
   try {
-    const { bookId } = req.params;
+    const { title, author, price, pages } = request.body;
 
-    // Validate bookId
-    if (isNaN(bookId) || Number(bookId) <= 0) {
-      return res.status(400).json({ error: "Invalid book ID" });
-    }
+    // Support both numeric and numeric string inputs safely
+    const numPrice = Number(price);
+    const numPages = Number(pages);
 
-    // Check if the book exists
-    const checkBookQuery = `SELECT * FROM book WHERE id = ?;`;
-    const existingBook = await db.get(checkBookQuery, [bookId]);
-
-    if (!existingBook) {
-      return res.status(404).json({ error: "Book not found" });
-    }
-
-    const { title, author, price, pages } = req.body;
-
-    // Validate request body
     if (
-      !title || typeof title !== "string" || title.trim() === "" ||
-      !author || typeof author !== "string" || author.trim() === "" ||
-      price === undefined || isNaN(price) || Number(price) < 0 ||
-      pages === undefined || isNaN(pages) || Number(pages) <= 0
+      typeof title !== 'string' || !title.trim() ||
+      typeof author !== 'string' || !author.trim() ||
+      isNaN(numPrice) || numPrice < 0 ||
+      isNaN(numPages) || numPages <= 0
     ) {
-      return res.status(400).json({
-        error: "Invalid request data. Please provide valid title, author, price, and pages.",
+      return response.status(400).json({
+        error: 'Please provide valid title, author, price and pages'
       });
     }
 
-    // Parameterized query to update the book
-    const updateBookQuery = `
-      UPDATE book
-      SET title = ?, author = ?, price = ?, pages = ?
-      WHERE id = ?;
-    `;
-    await db.run(updateBookQuery, [
-      title.trim(),
-      author.trim(),
-      Number(price),
-      Number(pages),
-      bookId,
-    ]);
+    const result = await db.run(
+      `INSERT INTO book (title, author, price, pages) VALUES (?, ?, ?, ?)`,
+      [title.trim(), author.trim(), numPrice, numPages]
+    );
 
-    res.status(200).json({
-      id: Number(bookId),
-      title: title.trim(),
-      author: author.trim(),
-      price: Number(price),
-      pages: Number(pages),
+    response.status(201).json({
+      message: 'Book Added Successfully',
+      bookId: result.lastID
     });
   } catch (error) {
-    console.error(`Error updating book: ${error.message}`);
-    res.status(500).json({ error: "Internal Server Error" });
+    response.status(500).json({ error: error.message });
   }
 });
 
-// 6. DELETE /books/:bookId/ - Delete a book by ID
-app.delete("/books/:bookId/", async (req, res) => {
+// 4. PUT - Update Book
+app.put('/books/:bookId/', async (request, response) => {
   try {
-    const { bookId } = req.params;
+    const { bookId } = request.params;
+    const { title, author, price, pages } = request.body;
 
-    // Validate bookId
-    if (isNaN(bookId) || Number(bookId) <= 0) {
-      return res.status(400).json({ error: "Invalid book ID" });
+    const numPrice = Number(price);
+    const numPages = Number(pages);
+
+    if (
+      typeof title !== 'string' || !title.trim() ||
+      typeof author !== 'string' || !author.trim() ||
+      isNaN(numPrice) || numPrice < 0 ||
+      isNaN(numPages) || numPages <= 0
+    ) {
+      return response.status(400).json({
+        error: 'Please provide valid title, author, price and pages'
+      });
     }
 
-    // Check if the book exists
-    const checkBookQuery = `SELECT * FROM book WHERE id = ?;`;
-    const existingBook = await db.get(checkBookQuery, [bookId]);
+    const result = await db.run(
+      `UPDATE book SET title = ?, author = ?, price = ?, pages = ? WHERE id = ?`,
+      [title.trim(), author.trim(), numPrice, numPages, bookId]
+    );
 
-    if (!existingBook) {
-      return res.status(404).json({ error: "Book not found" });
+    if (result.changes === 0) {
+      return response.status(404).json({
+        error: 'Book not found'
+      });
     }
 
-    // Parameterized query to delete the book
-    const deleteBookQuery = `
-      DELETE FROM book WHERE id = ?;
-    `;
-    await db.run(deleteBookQuery, [bookId]);
-
-    res.status(200).json({
-      message: "Book deleted successfully",
+    response.status(200).json({
+      message: 'Book Updated Successfully'
     });
   } catch (error) {
-    console.error(`Error deleting book: ${error.message}`);
-    res.status(500).json({ error: "Internal Server Error" });
+    response.status(500).json({ error: error.message });
   }
 });
 
-module.exports = app;
+// 5. DELETE - Remove Book
+app.delete('/books/:bookId/', async (request, response) => {
+  try {
+    const { bookId } = request.params;
+    const result = await db.run('DELETE FROM book WHERE id = ?', [bookId]);
+
+    if (result.changes === 0) {
+      return response.status(404).json({
+        error: 'Book not found'
+      });
+    }
+
+    response.status(200).json({
+      message: 'Book Deleted Successfully'
+    });
+  } catch (error) {
+    response.status(500).json({ error: error.message });
+  }
+});
+
+// Handle Unknown Routes
+app.use((request, response) => {
+  response.status(404).json({
+    error: 'Route Not Found'
+  });
+});
+
+// Initialize Application
+initializeDBAndServer();
